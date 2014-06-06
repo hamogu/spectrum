@@ -7,4 +7,5 @@ This is the documentation for the affiliated package.
 Reference/API
 =============
 
-.. automodapi:: packagename
+.. automodapi:: spectrum.spectrum
+.. automodapi:: spectrum
