@@ -1,8 +1,10 @@
-****************
-Template package
-****************
+********
+Spectrum
+********
 
-This is the documentation for the affiliated package.
+.. note::
+   Only 1D spectra are supported at this point. 
+
 
 Reference/API
 =============
