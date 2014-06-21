@@ -24,7 +24,7 @@ class SetupData(object):
         if not hasattr(self, '_b'):
             wave = np.arange(5000, 5500) * u.Angstrom
             flux = (1. + np.random.random(len(wave))) * u.erg/u.Angstrom/u.second
-            error = 0.1 * np.ones_like(flux)
+            error = 0.1 * np.ones_like(flux) * flux.unit
             spec = COSspectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
                                dispersion='WAVE', uncertainty='ERROR')
             spec.meta['ORIGIN'] = 'Example'
