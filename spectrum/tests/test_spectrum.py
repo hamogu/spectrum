@@ -4,7 +4,7 @@ import numpy as np
 
 import astropy.units as u
 
-from ..spectrum import coadd_simple, COSspectrum
+from ..spectrum import coadd_simple, Spectrum
 
 
 class SetupData(object):
@@ -13,7 +13,7 @@ class SetupData(object):
         if not hasattr(self, '_a'):
             wave = np.arange(5000, 5500) * u.Angstrom
             flux = (1. + np.random.random(len(wave))) * u.erg/u.Angstrom/u.second
-            spec = COSspectrum({'WAVE':wave, 'FLUX': flux}, dispersion='WAVE')
+            spec = Spectrum({'WAVE':wave, 'FLUX': flux}, dispersion='WAVE')
             spec.meta['ORIGIN'] = 'Example'
             self._a = spec
         return self._a
@@ -25,7 +25,7 @@ class SetupData(object):
             wave = np.arange(5000, 5500) * u.Angstrom
             flux = (1. + np.random.random(len(wave))) * u.erg/u.Angstrom/u.second
             error = 0.1 * np.ones_like(flux.value) * flux.unit
-            spec = COSspectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
+            spec = Spectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
                                dispersion='WAVE', uncertainty='ERROR')
             spec.meta['ORIGIN'] = 'Example'
             self._b = spec
@@ -38,7 +38,7 @@ class SetupData(object):
             wave = np.arange(5000, 5010) * u.Angstrom
             flux = (np.arange(10)) * u.erg/u.Angstrom/u.second
             error = 0.1 * flux + 0.1 * u.erg/u.Angstrom/u.second
-            spec = COSspectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
+            spec = Spectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
                                dispersion='WAVE', uncertainty='ERROR')
             spec.meta['ORIGIN'] = 'Example'
             self._c = spec
@@ -51,7 +51,7 @@ class SetupData(object):
             wave = np.arange(5020, 5030) * u.Angstrom
             flux = (np.arange(10)) * u.erg/u.Angstrom/u.second
             error = 0.1 * flux + 0.1 * u.erg/u.Angstrom/u.second
-            spec = COSspectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
+            spec = Spectrum({'WAVE':wave, 'FLUX': flux, 'ERROR': error}, 
                                dispersion='WAVE', uncertainty='ERROR')
             spec.meta['ORIGIN'] = 'Example'
             self._d = spec
@@ -110,7 +110,7 @@ class TestSpectrum(SetupData):
     def test_shiftrv(self):
         wave = np.array([100, 300]) * u.nm
         flux = np.array([1,1]) * u.W / u.second
-        spec = COSspectrum({'WAVE':wave, 'FLUX': flux}, dispersion='WAVE')
+        spec = Spectrum({'WAVE':wave, 'FLUX': flux}, dispersion='WAVE')
         spec.shift_rv(300*u.km/u.s)
         assert np.abs(spec.disp[0]/(100.1*u.nm)-1) < 1e-6
         assert np.abs(spec.disp[1]/(300.3*u.nm)-1) < 1e-6

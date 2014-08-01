@@ -78,7 +78,7 @@ def coadd_simple(spectra, dispersion=None, **kwargs):
     fluxes = fluxes.mean(axis=0).filled(fill_value=np.nan) * fluxunit
     
     if errors is None:
-        return COSspectrum(data=[dispersion, fluxes],
+        return Spectrum(data=[dispersion, fluxes],
                            names=[spectra[0].dispersion, 'FLUX'],
                            dispersion=spectra[0].dispersion,
                            )
@@ -87,7 +87,7 @@ def coadd_simple(spectra, dispersion=None, **kwargs):
         if fluxmask.sum() > 0:
             errors[fluxmask] = np.ma.masked  # In case flux has more entries masked than error
         errors = (errors.mean(axis=0)/np.sqrt((~np.ma.getmaskarray(errors)).sum(axis=0))).filled(np.nan)*fluxunit
-        return COSspectrum(data=[dispersion, fluxes, errors],
+        return Spectrum(data=[dispersion, fluxes, errors],
                            names=[spectra[0].dispersion, 'FLUX', spectra[0].uncertainty], 
                        dispersion=spectra[0].dispersion, uncertainty=spectra[0].uncertainty,
                            )
@@ -152,17 +152,17 @@ class Spectrum(table.Table):
         if 'uncertainty' in kwargs:
             self.uncertainty = kwargs.pop('uncertainty')
 
-        super(COSspectrum, self).__init__(*args, **kwargs)
+        super(Spectrum, self).__init__(*args, **kwargs)
 
     def _new_from_slice(self, slice_):
-        spec = super(COSspectrum, self)._new_from_slice(slice_)
+        spec = super(Spectrum, self)._new_from_slice(slice_)
         spec.fluxname = self.fluxname
         spec.dispersion = self.dispersion
         spec.uncertainty = self.uncertainty
         return spec
 
     def __getitem__(self, item):
-        spec = super(COSspectrum, self).__getitem__(item)
+        spec = super(Spectrum, self).__getitem__(item)
         if isinstance(item, (tuple, list)) and all(isinstance(x, six.string_types)
                                                      for x in item):
             spec.fluxname = self.fluxname
