@@ -25,7 +25,6 @@ package is based on ``astropy.table.Table``. This design decision:
 Therefore, we currently develop this package independently, but we aim to 
 integrate them eventually.
 
-
 .. _Astropy: http://www.astropy.org/
 
 .. image:: https://travis-ci.org/hamogu/spectrum.png?branch=master
