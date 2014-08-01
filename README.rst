@@ -29,3 +29,7 @@ integrate them eventually.
 
 .. image:: https://travis-ci.org/hamogu/spectrum.png?branch=master
   :target: https://travis-ci.org/hamogu/spectrum
+
+.. image:: https://coveralls.io/repos/hamogu/spectrum/badge.png
+  :target: https://coveralls.io/r/hamogu/spectrum
+
