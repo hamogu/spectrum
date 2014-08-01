@@ -28,3 +28,5 @@ integrate them eventually.
 
 .. _Astropy: http://www.astropy.org/
 
+.. image:: https://travis-ci.org/hamogu/spectrum.png?branch=master
+  :target: https://travis-ci.org/hamogu/spectrum
