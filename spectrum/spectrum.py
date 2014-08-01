@@ -1,9 +1,8 @@
-from copy import deepcopy
-
+import copy
 import warnings
 
 import numpy as np
-from scipy.interpolate import interp1d
+from scipy import interpolate
 # could implement fallback to np.interp if scipy is not available
 
 from astropy import table
@@ -31,33 +30,32 @@ from astropy.modeling import models, fitting
 def coadd_simple(spectra, dispersion=None, **kwargs):
     '''A simple way to coadd several spectra
 
-    All spectra are interpolated to `dispersion` and for each wavelengths bin the
+    All spectra are interpolated to ``dispersion`` and for each wavelengths bin the
     mean over all n spectra is calculated. The reported uncertainty is just the mean
     of all uncertainties scaled by 1/sqrt(n).
     Nan values are ignored in the calculation of the mean. Thus, this method can be used
     if not all spectra have the same wavelength range. Supply the keyword
-    ``bounds_error=False``, so that the interpolation return ``nan``s outside the range
+    ``bounds_error=False``, so that the interpolation return ``nan`` outside the range
     covered by the spectrum.
         
 
     Parameters
     ----------
-    spectra : list of ~COSspectrum instances
+    spectra : list of :class:`~spectrum.Spectrum` instances
         spectra to be averaged
-    dispersion : ~astropy.quantity.Quantity
-        dispersion axis of the new spectrum. If `None` the dispersion axis of the 
-        first spectrum in `spectra` is used.
+    dispersion : :class:`~astropy.quantity.Quantity`
+        dispersion axis of the new spectrum. If ``None`` the dispersion axis of the 
+        first spectrum in ``spectra`` is used.
     
-    All other parameters are passed to spectrum.interpol.
+    All other parameters are passed to :meth:`~spectrum.Spectrum.interpol`.
 
     Returns
     -------
-    spec : COSspectrum
+    spec : :class:`~spectrum.Spectrum`
 
     See also
     --------
     coadd_errorweighted (not implemented yet)
-    
     '''
     if dispersion is None:
         dispersion = spectra[0].disp
@@ -98,32 +96,34 @@ def coadd_simple(spectra, dispersion=None, **kwargs):
 def xcorr(speclist, waverange):
     '''cross-correlate spectral segments in a certain range
 
+    More stuff to be considered:
+   
+    find / report some diagnostic for the case that the correlation does not work well
+    make wavelength shift array an input
+    find way to make faster
+    rename speclist to spectra for consistency with coadd
+    unit tests
+
+
     Parameters
     ----------
     speclist : list
-        List of COS spectra with 'WAVELENGTH' and 'FLUX' columns
+        List of :class:`~spectrum.spectrum.Spectrum` with 'WAVELENGTH' and 'FLUX' columns
     waverange : [float, float]
         lower and upper end of wavelength range
   
     Returns
     -------
     res : array of len(speclist)
-        shift relative to first spectrum in speclist
+        shift relative to first :class:`~spectrum.spectrum.Spectrum` in speclist
        
-    To-Do
-    -----
-    find / report some diagnostic for the case that the correlation does not work well
-    make wavelength shift array an input
-    find way to make faster
-    rename speclist to spectra for consistency with coadd
-    unit tests
     '''
     specbase = speclist[0].slice_disp(waverange)
     res = np.zeros(len(speclist))
     shift = np.arange(-20.,+20) * u.km/u.s # see below - careful when changing
     cor = np.zeros(shift.shape)
     for j in range(len(speclist)):
-        testspec = deepcopy(speclist[j])
+        testspec = copy.deepcopy(speclist[j])
         testspec.dispersion = speclist[j].dispersion 
         testspec.shift_rv(-21*u.km/u.s)
         for i in range(len(cor)):
@@ -136,7 +136,7 @@ def xcorr(speclist, waverange):
     return res
 
 
-class COSspectrum(table.Table):
+class Spectrum(table.Table):
     '''
     To make more general:
     make "dispersion" or something similar and allow to set that as an alias for
@@ -227,7 +227,7 @@ class COSspectrum(table.Table):
         
         Returns
         -------
-        spec : COSSpectrum
+        spec : :class:`~spectrum.Spectrum`
             spectrum that is limited to the range from bound[0] to bound[1]
 
         See also
@@ -245,12 +245,12 @@ class COSspectrum(table.Table):
         ----------
         bounds : list of two quantities
             [lower bound, upper bound] in radial velocity
-        rest : astropy.quantity.Quantity
+        rest : :class:`~astropy.quantity.Quantity`
             Rest wavelength/frequency of spectral feature
         
         Returns
         -------
-        spec : COSSpectrum
+        spec : :class:`~spectrum.Spectrum`
             spectrum that is limited to the range from bound[0] to bound[1]
 
         See also
@@ -273,7 +273,7 @@ class COSspectrum(table.Table):
         
         Parameters
         ----------
-        rv : astropy.quantity.Quantity
+        rv : :class:`~astropy.quantity.Quantity`
             radial velocity (positive value will red-shift the spectrum, negative
             value will blue-shift the spectrum)
         '''
@@ -285,7 +285,7 @@ class COSspectrum(table.Table):
     # overload add, substract, divide to interpol automatically?
         
     def bin_up(self, factor, other_cols={}):
-        '''bin up an array by factor factor
+        '''bin up an array by factor ``factor``
    
         If the number of elements in spectrum is not n * factor with n=1,2,3,...
         the remaining bins at the end are discarded.
@@ -310,7 +310,7 @@ class COSspectrum(table.Table):
 
         Returns
         -------
-        spec : Spectrum
+        spec : :class:`~spectrum.Spectrum`
             A new spectrum object.
         '''
         n = len(self) // factor
@@ -336,19 +336,19 @@ class COSspectrum(table.Table):
 
         Parameters
         ----------
-        new_dispersion : ~astropy.quantity.Quantity
+        new_dispersion : :class:`~astropy.quantity.Quantity`
            The new dispersion axis.
 
         All other keywords are passed directly to scipy.interpolate.interp1d.
 
         Returns
         -------
-        spec : COSspectrum
+        spec : :class:`~spectrum.Spectrum`
             A new spectrum.
         '''
         new_disp = new_dispersion.to(self.disp.unit, equivalencies=u.spectral())
 
-        f_flux = interp1d(self.disp, self.flux, **kwargs)
+        f_flux = interpolate.interp1d(self.disp, self.flux, **kwargs)
         newflux = f_flux(new_disp)
 
         names = [self.dispersion, self.fluxname]
@@ -359,10 +359,10 @@ class COSspectrum(table.Table):
                          'Bins are no longer independent and might require scaling.' +
                          'It is up to the user the decide if the uncertainties are still meaningful.')
             names.append(self.uncertainty)
-            f_uncert = interp1d(self.disp, self.error, **kwargs)
+            f_uncert = interpolate.interp1d(self.disp, self.error, **kwargs)
             vals.append(f_uncert(new_disp))
 
-        # To-Do: Add other columns that should be interpolated to names, vals here
+        # TBD Add other columns that should be interpolated to names, vals here
         # Add switch or keyword to select them
 
         newcols = []

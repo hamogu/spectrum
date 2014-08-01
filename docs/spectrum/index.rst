@@ -10,4 +10,4 @@ Reference/API
 =============
 
 .. automodapi:: spectrum.spectrum
-.. automodapi:: spectrum
+

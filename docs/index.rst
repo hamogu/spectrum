@@ -19,3 +19,8 @@ integrate them eventually.
   :maxdepth: 2
 
   spectrum/index.rst
+
+Reference/API
+=============
+
+.. automodapi:: spectrum
