@@ -2,9 +2,6 @@
 The spectrum package
 ====================
 
-If you run into any problems, don't hesitate to ask for help on the
-astropy-dev mailing list!
-
 This package provides a template for packages that are affiliated with the
 project. This package design mirrors the layout of the main
 `Astropy`_ repository, as well as reusing much of the helper code used to
