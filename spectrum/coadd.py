@@ -1,3 +1,5 @@
+
+
 def wave_little_interpol(wavelist):
     '''Make a wavelengths array for merging echelle orders with little interpolation.
 
@@ -97,7 +99,7 @@ def coadd_simple(spectra, dispersion=None, **kwargs):
 
     See also
     --------
-    coadd_errorweighted (not implemented yet)
+    coadd_errorweighted
     '''
     if dispersion is None:
         dispersion = spectra[0].disp
@@ -133,4 +135,64 @@ def coadd_simple(spectra, dispersion=None, **kwargs):
                            names=[spectra[0].dispersion, 'FLUX', spectra[0].uncertainty], 
                        dispersion=spectra[0].dispersion, uncertainty=spectra[0].uncertainty,
                            )
+
+
+
+def coadd_errorweighted(spectra, dispersion=None, **kwargs):
+    '''A simple way to coadd several spectra
+
+    All spectra are interpolated to ``dispersion`` and for each wavelengths bin the
+    mean over all n spectra is calculated. The reported uncertainty is just the mean
+    of all uncertainties scaled by 1/sqrt(n).
+    Nan values are ignored in the calculation of the mean. Thus, this method can be used
+    if not all spectra have the same wavelength range. Supply the keyword
+    ``bounds_error=False``, so that the interpolation returns ``nan`` outside the range
+    covered by the spectrum.
+        
+
+    Parameters
+    ----------
+    spectra : list of :class:`~spectrum.Spectrum` instances
+        spectra to be averaged
+    dispersion : :class:`~astropy.quantity.Quantity`
+        dispersion axis of the new spectrum. If ``None`` the dispersion axis of the 
+        first spectrum in ``spectra`` is used.
+    
+    All other parameters are passed to :meth:`~spectrum.Spectrum.interpol`.
+
+    Returns
+    -------
+    spec : :class:`~spectrum.Spectrum`
+
+    See also
+    --------
+    coadd_simple
+    '''
+    if dispersion is None:
+        dispersion = spectra[0].disp
+    fluxes = np.ma.zeros((len(spectra), len(dispersion)))
+    # since numpy operation will destroy the flux unit, need to convert here by hand 
+    # until that is fixed (fluxes can be NDdata once that works with quantities)
+    fluxunit = spectra[0].flux.unit
+    errors = np.zeros_like(fluxes)
+    for i, s in enumerate(spectra):
+        s_new = s.interpol(dispersion, **kwargs)
+        fluxes[i,:] = s_new.flux.to(fluxunit)
+        if s.uncertainty is None:
+            raise ValueError('s.uncertainty needs to be set for every spectrum')
+        else:
+            errors[i,:] = s_new.error.to(fluxunit)
+
+    # First, make sure there is no flux defined if there is no error.
+    errors = np.ma.fix_invalid(errors)
+    fluxes[errors.mask] = np.ma.masked
+    # This can be simplified considerably as soon as masked quantities exist.
+    fluxes = np.ma.fix_invalid(fluxes)
+    fluxes = np.ma.average(fluxes, axes=0, weight = 1./errors**2.) * fluxunit
+    errors = 1. / np.ma.qsum(1./errors**2., axes=0)
+
+    return Spectrum(data=[dispersion, fluxes, errors],
+                       names=[spectra[0].dispersion, 'FLUX', spectra[0].uncertainty], 
+                   dispersion=spectra[0].dispersion, uncertainty=spectra[0].uncertainty,
+                       )
 

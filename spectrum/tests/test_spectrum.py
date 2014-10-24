@@ -4,7 +4,8 @@ import numpy as np
 
 import astropy.units as u
 
-from ..spectrum import coadd_simple, Spectrum
+from ..spectrum import Spectrum
+from ..coadd import coadd_simple
 
 
 class SetupData(object):
@@ -114,6 +115,7 @@ class TestSpectrum(SetupData):
         spec.shift_rv(300*u.km/u.s)
         assert np.abs(spec.disp[0]/(100.1*u.nm)-1) < 1e-6
         assert np.abs(spec.disp[1]/(300.3*u.nm)-1) < 1e-6
+
 
 class TestCoadd(SetupData):
     def test_coadd_one(self):
