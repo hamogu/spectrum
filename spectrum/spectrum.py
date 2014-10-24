@@ -99,7 +99,7 @@ def xcorr(speclist, waverange):
     More stuff to be considered:
    
     find / report some diagnostic for the case that the correlation does not work well
-    make wavelength shift array an input
+    make ``shift`` array an input, make step size input
     find way to make faster
     rename speclist to spectra for consistency with coadd
     unit tests
@@ -130,10 +130,10 @@ def xcorr(speclist, waverange):
             testspec.shift_rv(1*u.km/u.s) # see above
             cor[i] = (specbase.flux * testspec.interpol(specbase.disp).flux).sum().value
         g = models.Gaussian1D(amplitude=np.max(cor), mean=0., stddev=0.5)
-        pfit = fitting.NonLinearLSQFitter()
+        pfit = fitting.LevMarLSQFitter()
         new_model = pfit(g, shift, cor)
         res[j] = new_model.mean.value
-    return res
+    return res * u.km/u.s
 
 
 class Spectrum(table.Table):
@@ -154,20 +154,21 @@ class Spectrum(table.Table):
 
         super(Spectrum, self).__init__(*args, **kwargs)
 
+    def _copy_property_names(self, spec):
+        spec.fluxname = copy.copy(self.fluxname)
+        spec.dispersion = copy.copy(self.dispersion)
+        spec.uncertainty = copy.copy(self.uncertainty)
+
     def _new_from_slice(self, slice_):
         spec = super(Spectrum, self)._new_from_slice(slice_)
-        spec.fluxname = self.fluxname
-        spec.dispersion = self.dispersion
-        spec.uncertainty = self.uncertainty
+        self._copy_property_names(spec)
         return spec
 
     def __getitem__(self, item):
         spec = super(Spectrum, self).__getitem__(item)
         if isinstance(item, (tuple, list)) and all(isinstance(x, six.string_types)
                                                      for x in item):
-            spec.fluxname = self.fluxname
-            spec.dispersion = self.dispersion
-            spec.uncertainty = self.uncertainty
+            self._copy_property_names(spec)
         return spec
 
 
