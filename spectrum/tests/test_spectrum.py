@@ -1,11 +1,11 @@
 from copy import deepcopy
 
 import numpy as np
-
 import astropy.units as u
+import pytest
 
 from ..spectrum import Spectrum
-from ..coadd import coadd_simple
+from ..coadd import coadd_simple, coadd_errorweighted
 
 
 class SetupData(object):
@@ -118,8 +118,10 @@ class TestSpectrum(SetupData):
 
 
 class TestCoadd(SetupData):
-    def test_coadd_one(self):
-        out = coadd_simple([self.c])
+
+    @pytest.mark.parametrize("coadd", [(coadd_simple), (coadd_errorweighted)])
+    def test_coadd_one(self, coadd):
+        out = coadd([self.c])
         assert np.all(self.c.flux == out.flux)
         assert np.all(self.c.error == out.error)
 
@@ -130,24 +132,36 @@ class TestCoadd(SetupData):
         assert np.all(out.disp == self.a.disp)
 
 
-    def test_coadd_simple_error(self):
-        out = coadd_simple([self.b, self.b, self.b])
+    @pytest.mark.parametrize("coadd", [(coadd_simple), (coadd_errorweighted)])
+    def test_coadd_error(self, coadd):
+        out = coadd([self.b, self.b, self.b])
         assert np.all(np.abs(out.flux/self.b.flux-1) < 1e-6)
         assert np.all(np.abs(out.error/(0.1/np.sqrt(3)*u.erg/u.AA/u.second)-1) < 1e-6)
         assert np.all(out.disp == self.b.disp)
 
-    
-    def test_coadd_disp(self):
+
+    @pytest.mark.parametrize("coadd", [(coadd_simple), (coadd_errorweighted)])    
+    def test_coadd_disp(self, coadd):
         disp = np.arange(5050, 5100) * u.Angstrom
-        out = coadd_simple([self.a, self.a, self.a], dispersion=disp)
+        out = coadd([self.b, self.b, self.b], dispersion=disp)
         assert np.all(out.disp == disp)
-        assert np.all(np.abs(out.flux/self.a.flux[50:100]-1) < 1e-6)
+        assert np.all(np.abs(out.flux/self.b.flux[50:100]-1) < 1e-6)
 
-
-    def test_coadd_nonoverlapping(self):
+    @pytest.mark.parametrize("coadd", [(coadd_simple), (coadd_errorweighted)])
+    def test_coadd_nonoverlapping(self, coadd):
         disp = np.arange(5000,5030) * u.Angstrom
-        out = coadd_simple([self.c, self.d], dispersion=disp, bounds_error=False)
+        out = coadd([self.c, self.d], dispersion=disp, bounds_error=False)
         assert np.all(self.c.flux == out.flux[:len(self.c)])
         assert np.all(self.c.error == out.error[:len(self.c)])
         assert np.all(self.d.flux == out.flux[-len(self.d):])
         assert np.all(self.d.error == out.error[-len(self.d):])
+
+    def test_coadd_errorweighted(self):
+        '''Test situation where the uncertainties are widely different.'''
+        spec = Spectrum({'WAVE':self.c['WAVE'], 'FLUX': 2*self.c.flux, 
+                         'ERROR': 1000 * self.c['ERROR']}, 
+                        dispersion='WAVE', uncertainty='ERROR')
+        out = coadd_errorweighted([self.c, spec])
+        assert np.all(np.abs(self.c.flux[1:]/out.flux[1:] - 1) < 0.001 )
+        assert np.all(out.error < self.c.error)
+ 

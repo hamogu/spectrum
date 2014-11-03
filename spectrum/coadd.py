@@ -1,3 +1,5 @@
+import numpy as np
+from .spectrum import Spectrum
 
 
 def wave_little_interpol(wavelist):
@@ -185,11 +187,17 @@ def coadd_errorweighted(spectra, dispersion=None, **kwargs):
 
     # First, make sure there is no flux defined if there is no error.
     errors = np.ma.fix_invalid(errors)
-    fluxes[errors.mask] = np.ma.masked
+    if np.ma.is_masked(errors):
+        fluxes[errors.mask] = np.ma.masked
     # This can be simplified considerably as soon as masked quantities exist.
     fluxes = np.ma.fix_invalid(fluxes)
-    fluxes = np.ma.average(fluxes, axes=0, weight = 1./errors**2.) * fluxunit
-    errors = 1. / np.ma.qsum(1./errors**2., axes=0)
+    # There are no masked quantities yet, so make sure they are filled here.
+    fluxes = np.ma.average(fluxes, axis=0, weights = 1./errors**2.).filled(np.nan) * fluxunit
+    errors = np.sqrt(1. / np.ma.sum(1./errors**2., axis=0).filled(np.nan)) * fluxunit
+    # check explicitly here every time, because that makes hard to find bugs and 
+    # astropy quantity behaviour might change.
+    assert not np.ma.isMaskedArray(fluxes)
+    assert not np.ma.isMaskedArray(errors) 
 
     return Spectrum(data=[dispersion, fluxes, errors],
                        names=[spectra[0].dispersion, 'FLUX', spectra[0].uncertainty], 
