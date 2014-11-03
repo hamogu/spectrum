@@ -38,38 +38,37 @@ def wave_little_interpol(wavelist):
     mins = np.array([min(w) for w in wavelist])
     maxs = np.array([max(w) for w in wavelist])
     
-    if np.argsort(mins) != np.arange(len(wavelist)):
+    if np.any(np.argsort(mins) != np.arange(len(wavelist))):
         raise ValueError('List of wavelengths must be sorted in increasing order.')
-    if np.argsort(mins) != np.arange(len(wavelist)):
+    if np.any(np.argsort(mins) != np.arange(len(wavelist))):
         raise ValueError('List of wavelengths must be sorted in increasing order.')
-    if not np.all(maxs[:-1] < mins[1:]):
+    if not np.all(maxs[:-1] > mins[1:]):
         raise ValueError('Not all orders overlap.')
     if np.any(mins[2:] < maxs[:-2]):
         raise ValueError('No order can be completely overlapped.')
 
-
-    waveout = []
-    waveout.append(wavelist[0][wavelist[0]< mins[1]])
+    waveout = [wavelist[0][wavelist[0]< mins[1]]]
     for i in range(len(wavelist)-1):
         #### overlap region ####
         # No assumptions on how bin edges of different orders match up
-        # In overlap region patch in a linear scale with slightly different step.
-        dw = maxs[i] - mins[i+1]
-        step = 0.5*(np.mean(np.diff(wavelist[i])) + np.mean(np.diff(wavelist[i+1])))
-        n_steps = np.int(dw / step + 0.5)
         # overlap start and stop are the last and first "clean" points.
         overlap_start = np.max(waveout[-1])
         overlap_end = np.min(wavelist[i+1][wavelist[i+1] > maxs[i]])
-        wave_overlap = np.linspace(overlap_start + step,  overlap_end - step, n_steps-1)
+        # In overlap region patch in a linear scale with slightly different step.
+        dw = overlap_end - overlap_start
+        step = 0.5*(np.mean(np.diff(wavelist[i])) + np.mean(np.diff(wavelist[i+1])))
+        n_steps = np.int(dw / step + 0.5)
+
+        wave_overlap = np.linspace(overlap_start + step,  overlap_end - step, n_steps - 1)
         waveout.append(wave_overlap)
 
         #### next region without overlap ####
-        if i < (len(wavelist) -1):  # normal case
+        if i < (len(wavelist) -2):  # normal case
             waveout.append(wavelist[i+1][(wavelist[i+1] > maxs[i]) & (wavelist[i+1]< mins[i+2])])
         else:                       # last array - no more overlap behind that
             waveout.append(wavelist[i+1][(wavelist[i+1] > maxs[i])])
 
-    return waveout
+    return np.hstack(waveout)
 
 
 

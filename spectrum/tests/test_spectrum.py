@@ -5,7 +5,7 @@ import astropy.units as u
 import pytest
 
 from ..spectrum import Spectrum
-from ..coadd import coadd_simple, coadd_errorweighted
+from ..coadd import coadd_simple, coadd_errorweighted, wave_little_interpol
 
 
 class SetupData(object):
@@ -165,3 +165,16 @@ class TestCoadd(SetupData):
         assert np.all(np.abs(self.c.flux[1:]/out.flux[1:] - 1) < 0.001 )
         assert np.all(out.error < self.c.error)
  
+def test_wave_little_interpol():
+    wave1 = np.arange(1000., 1010.1, 1.)
+    wave2 = np.arange(1009., 1015.1, 1.)
+    wave3 = np.arange(1014., 1022.1, 1.)
+    assert np.all(wave_little_interpol([wave1, wave2, wave3]) == np.arange(1000., 1022.1, 1.))
+
+    wave2b = np.arange(1009.2, 1015.2, 1.)
+    out = wave_little_interpol([wave1, wave2b, wave3])
+    assert np.all(out[:10] == wave1[:10])
+    assert np.all(out[-7:] == wave3[-7:])
+    ind_out = (out > 1011.) & (out < 1013.)
+    ind_2b = (wave2b > 1011.) & (wave2b < 1013.)
+    assert np.all(out[ind_out] == wave2b[ind_2b])
