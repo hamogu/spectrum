@@ -4,7 +4,7 @@ import numpy as np
 import astropy.units as u
 import pytest
 
-from ..spectrum import Spectrum
+from ..spectrum import Spectrum, xcorr
 from ..coadd import coadd_simple, coadd_errorweighted, wave_little_interpol
 
 
@@ -14,6 +14,8 @@ class SetupData(object):
         if not hasattr(self, '_a'):
             wave = np.arange(5000, 5500) * u.Angstrom
             flux = (1. + np.random.random(len(wave))) * u.erg/u.Angstrom/u.second
+            # Make this a spectrum with at least one "feature"
+            flux[100:110] = flux[100: 110] + np.array([.5, 1., 2., 3., 5., 5., 3.5, 2., 1.5, 0.5 ]) * u.erg/u.AA/u.second
             spec = Spectrum({'WAVE':wave, 'FLUX': flux}, dispersion='WAVE')
             spec.meta['ORIGIN'] = 'Example'
             self._a = spec
@@ -178,3 +180,22 @@ def test_wave_little_interpol():
     ind_out = (out > 1011.) & (out < 1013.)
     ind_2b = (wave2b > 1011.) & (wave2b < 1013.)
     assert np.all(out[ind_out] == wave2b[ind_2b])
+
+
+class Testxcorr(SetupData):
+    def test_selfcorr(self):
+        out = xcorr(self.a.slice_disp([5010*u.AA, 5490*u.AA]), self.a, np.arange(-5,5)*u.km/u.s) 
+        assert out[0] == 0*u.km/u.s
+
+    def test_recovershift(self):
+        a = self.a.copy()
+        a.shift_rv(50.*u.km/u.s)
+        b = self.a.copy()
+        b.shift_rv(100.*u.km/u.s)
+        b[b.dispersion] += 0.05* np.random.random(len(b.disp)) * u.erg/u.Angstrom/u.second
+        out = xcorr(self.a, [a,b], np.arange(-170, 150, 10)*u.km/u.s, 
+                    bounds_error=False, fill_value=1)
+        assert out[0] == -50. * u.km/u.s
+        assert np.all(np.abs(out[1] + 100*u.km/u.s) < 1.*u.km/u.s)
+                  
+

@@ -1,5 +1,5 @@
-import copy
 import warnings
+import copy
 
 import numpy as np
 from scipy import interpolate
@@ -16,58 +16,66 @@ from astropy.modeling import models, fitting
 # Or put everything for single spectrum in spectrum class?
 # bin_up is not for flux spectrum.
 # should use np.sum() for count number spectrum -> Inheritance diagram
-# instead of slice disp, should I just support that in __getitem__ (if input is a 
-# wavelength) or is that too magical?
 # currently use doppler_optical - make different options (e.g. variable)
 # add way to change units, e.g. wave in km/s, flux at different scale
 # Allow None for slice to go to end of array? Or just tell people to use np/inf with proper units?
 # change COS spectrum init, so that I can initialize a spectrum form a spectrum (need to copy disp etc)
-# investigate why deepcopy(sepctrum) does not copy dispersion and how to fix that
+# investigate why deepcopy(sepctrum) does not copy dispersion and how to fix that -> maybe just stick this info into 'meta' which is already handeled by table class?
 # implement devision to return "flux ratio object" (which could just be spectrum with a different flux name)?
 # make slice_XXX accept list of  ranges, e.g. left and right of line.
 
+class InvalidSpectrumValueException(Exception):
+    pass
 
-def xcorr(speclist, waverange):
+def xcorr(base, spectra, steps, **kwargs):
     '''cross-correlate spectral segments in a certain range
 
-    More stuff to be considered:
-   
-    find / report some diagnostic for the case that the correlation does not work well
-    make ``shift`` array an input, make step size input
-    find way to make faster
-    rename speclist to spectra for consistency with coadd
-    unit tests
-
+    Cross-correlate one of more spectra to a base spectrum. This can be used to find
+    the relative radial velocity.
+    The implementation interpolates each spectra for each value in steps.
+    For cases where the base and the spectra are both on the same regular wavelength
+    grid, it is much faster to use ``np.correlate`` on the flux arrays directly.
 
     Parameters
     ----------
-    speclist : list
+    base : :class:`~spectrum.spectrum.Spectrum`
+       All spectra in ``speclist`` will be correlated against this spectrum.
+       This also defines the dispersion scale.
+    spectra : Spectrum or list of spectra
         List of :class:`~spectrum.spectrum.Spectrum` with 'WAVELENGTH' and 'FLUX' columns
-    waverange : [float, float]
-        lower and upper end of wavelength range
+    steps: astropy.Quantity
+        List or array of steps to test for the cross-correlation. For each value in ``steps``
+        the spectrum in question is shifted and then interpolated on the dispersion scale of 
+        ``base``. ``steps`` need not be regularly spaced. Typically, this will have units of 
+        km/s.
+
+    All other keyword arguments are passed to :meth:`~Spectrum.interpol`.
   
     Returns
     -------
     res : array of len(speclist)
-        shift relative to first :class:`~spectrum.spectrum.Spectrum` in speclist
+        shift relative to the spectrum ``base``
        
     '''
-    specbase = speclist[0].slice_disp(waverange)
-    res = np.zeros(len(speclist))
-    shift = np.arange(-20.,+20) * u.km/u.s # see below - careful when changing
-    cor = np.zeros(shift.shape)
-    for j in range(len(speclist)):
-        testspec = copy.deepcopy(speclist[j])
-        testspec.dispersion = speclist[j].dispersion 
-        testspec.shift_rv(-21*u.km/u.s)
-        for i in range(len(cor)):
-            testspec.shift_rv(1*u.km/u.s) # see above
-            cor[i] = (specbase.flux * testspec.interpol(specbase.disp).flux).sum().value
-        g = models.Gaussian1D(amplitude=np.max(cor), mean=0., stddev=0.5)
-        pfit = fitting.LevMarLSQFitter()
-        new_model = pfit(g, shift, cor)
-        res[j] = new_model.mean.value
-    return res * u.km/u.s
+    if not isinstance(spectra[0], Spectrum):
+        spectra = [spectra] # input might be single spectrum and not list of Spectra
+    if not isinstance(spectra[0], Spectrum):
+        # No excuse any longer!
+        raise ValueError('`spectra` must be a spectrum instance or a list of spectra.')
+    
+    shifts = np.zeros(len(spectra)) * steps[0].unit
+    cor = np.zeros(steps.shape)
+    for j in range(len(spectra)):
+        for i, s in enumerate(steps):
+            testspec = spectra[j].copy()
+            testspec.shift_rv(s)
+            cor[i] = (base.flux * testspec.interpol(base.disp, **kwargs).flux).sum().value
+            if not np.all(np.isfinite(cor)):
+                raise InvalidSpectrumValueException('''Cross-correlation results in nan or inf.
+Fill invalid flux values before calling xcorr and/or
+reduce the wavelength range of base to avoid edge effects when spectra are interpolated.''')
+        shifts[j] = steps[np.argmax(cor)]
+    return shifts
 
 
 class Spectrum(table.Table):
@@ -103,6 +111,22 @@ class Spectrum(table.Table):
         if isinstance(item, (tuple, list)) and all(isinstance(x, six.string_types)
                                                      for x in item):
             self._copy_property_names(spec)
+        return spec
+
+
+    def copy(self, copy_data=True):
+        '''
+        Return a copy of the table.
+
+
+        Parameters
+        ----------
+        copy_data : bool
+            If `True` (the default), copy the underlying data array.
+            Otherwise, use the same data array
+        '''
+        spec = super(Spectrum, self).copy(copy_data=copy_data)
+        self._copy_property_names(spec)
         return spec
 
 
