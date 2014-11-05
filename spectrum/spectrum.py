@@ -244,7 +244,7 @@ class Spectrum(table.Table):
     # overload add, substract, divide to interpol automatically?
         
     def bin_up(self, factor, other_cols={}):
-        '''bin up an array by factor ``factor``
+        '''Bin up an array by factor ``factor``.
    
         If the number of elements in spectrum is not n * factor with n=1,2,3,...
         the remaining bins at the end are discarded.
