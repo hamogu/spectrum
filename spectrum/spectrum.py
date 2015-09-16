@@ -45,24 +45,24 @@ def xcorr(base, spectra, steps, **kwargs):
         List of :class:`~spectrum.spectrum.Spectrum` with 'WAVELENGTH' and 'FLUX' columns
     steps: astropy.Quantity
         List or array of steps to test for the cross-correlation. For each value in ``steps``
-        the spectrum in question is shifted and then interpolated on the dispersion scale of 
-        ``base``. ``steps`` need not be regularly spaced. Typically, this will have units of 
+        the spectrum in question is shifted and then interpolated on the dispersion scale of
+        ``base``. ``steps`` need not be regularly spaced. Typically, this will have units of
         km/s.
 
     All other keyword arguments are passed to :meth:`~Spectrum.interpol`.
-  
+
     Returns
     -------
     res : array of len(speclist)
         shift relative to the spectrum ``base``
-       
+
     '''
     if not isinstance(spectra[0], Spectrum):
         spectra = [spectra] # input might be single spectrum and not list of Spectra
     if not isinstance(spectra[0], Spectrum):
         # No excuse any longer!
         raise ValueError('`spectra` must be a spectrum instance or a list of spectra.')
-    
+
     shifts = np.zeros(len(spectra)) * steps[0].unit
     cor = np.zeros(steps.shape)
     for j in range(len(spectra)):
@@ -134,14 +134,14 @@ class Spectrum(table.Table):
     def read(cls, filename):
         '''specific to COS - can be made into a Reader'''
         data = []
-        
+
         tab = table.Table.read(filename)
         for c in tab.columns:
             if len(tab[c].shape) == 2:
                 data.append(table.Column(data=tab[c].data.flatten(),
                                          unit=tab[c].unit,
                                          name=c))
-        flattab = cls(data, meta=tab.meta, dispersion='WAVELENGTH')
+        flattab = cls(data, meta=tab.meta, dispersion='WAVELENGTH', uncertainty='ERROR')
         # COS is not an echelle spectrograph, so there never is any overlap
         flattab.sort('WAVELENGTH')
         return flattab
@@ -183,7 +183,7 @@ class Spectrum(table.Table):
         ----------
         bounds : list of two quantities
             [lower bound, upper bound] in dispersion of spectrally equivalent unit
-        
+
         Returns
         -------
         spec : :class:`~spectrum.Spectrum`
@@ -206,7 +206,7 @@ class Spectrum(table.Table):
             [lower bound, upper bound] in radial velocity
         rest : :class:`~astropy.quantity.Quantity`
             Rest wavelength/frequency of spectral feature
-        
+
         Returns
         -------
         spec : :class:`~spectrum.Spectrum`
@@ -229,7 +229,7 @@ class Spectrum(table.Table):
 
     def shift_rv(self, rv):
         '''Shift spectrum by rv
-        
+
         Parameters
         ----------
         rv : :class:`~astropy.quantity.Quantity`
@@ -242,16 +242,16 @@ class Spectrum(table.Table):
 
 
     # overload add, substract, divide to interpol automatically?
-        
+
     def bin_up(self, factor, other_cols={}):
         '''Bin up an array by factor ``factor``.
-   
+
         If the number of elements in spectrum is not n * factor with n=1,2,3,...
         the remaining bins at the end are discarded.
         By itself, this function knows how to deal with dispersion, flux and uncertainty.
-        The parameter `other_cols` can be used to specify how to bin up other columns in 
+        The parameter `other_cols` can be used to specify how to bin up other columns in
         the spectrum. Columns with no rule for binning up are discarded.
-   
+
         Parameters
         ----------
         x : array
@@ -262,7 +262,7 @@ class Spectrum(table.Table):
             The keys in this dictionary are the names of columns in the spectrum, its values
             are functions that define how to bin up other columns (e.g. for a column that holds
             a mask or data quality flag it does not make sense to calculate the mean).
-            The function is called on an array of shape [N, factor] and needs to return 
+            The function is called on an array of shape [N, factor] and needs to return
             a [N] array. For example `other_cols={'quality': lambda x: np.max(x, axis=1)}`
             would assign the new bin the maximum of all quality values in the original bins
             that contribute to the new bin.
@@ -314,7 +314,7 @@ class Spectrum(table.Table):
         vals = [new_disp, newflux]
 
         if self.uncertainty is not None:
-            warnings.warn('The uncertainty column is interpolated.' + 
+            warnings.warn('The uncertainty column is interpolated.' +
                          'Bins are no longer independent and might require scaling.' +
                          'It is up to the user the decide if the uncertainties are still meaningful.')
             names.append(self.uncertainty)
@@ -327,12 +327,12 @@ class Spectrum(table.Table):
         newcols = []
         for name, val in zip(names, vals):
             col = self[name]
-            newcols.append(col.__class__(data=val, name=name, 
+            newcols.append(col.__class__(data=val, name=name,
                                          description=col.description, unit=col.unit,
                                          format=col.format, meta=col.meta))
-        return self.__class__(newcols, meta=self.meta, dispersion=self.dispersion, 
+        return self.__class__(newcols, meta=self.meta, dispersion=self.dispersion,
                               uncertainty=self.uncertainty)
-        
+
     def crosscorrelate(self, dispersion, flux):
         '''or as a module level function?
         Do full thing here with steps, return best fit etc? or only calculate one spesific
