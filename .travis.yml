@@ -1,10 +1,10 @@
 language: python
 
 python:
-    - 2.6
+    # - 2.6
     - 2.7
     - 3.3
-    - 3.4
+    # - 3.4
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 
 # Setting sudo to false opts in to Travis-CI container-based builds.
@@ -38,8 +38,8 @@ matrix:
     include:
 
         # Do a coverage test in Python 2.
-        - python: 2.7
-          env: SETUP_CMD='test --coverage'
+        # - python: 2.7
+        #   env: SETUP_CMD='test --coverage'
 
         # Check for sphinx doc build warnings - we do this first because it
         # may run for a long time
@@ -53,20 +53,20 @@ matrix:
           env: ASTROPY_VERSION=development SETUP_CMD='test'
 
         # Try all python versions with the latest numpy
-        - python: 2.6
-          env: SETUP_CMD='test'
+        # - python: 2.6
+        #   env: SETUP_CMD='test'
         - python: 2.7
           env: SETUP_CMD='test'
-        - python: 3.3
-          env: SETUP_CMD='test'
+        # - python: 3.3
+        #   env: SETUP_CMD='test'
         - python: 3.4
           env: SETUP_CMD='test'
 
         # Try older numpy versions
-        - python: 2.7
-          env: NUMPY_VERSION=1.8 SETUP_CMD='test'
-        - python: 2.7
-          env: NUMPY_VERSION=1.7 SETUP_CMD='test'
+        # - python: 2.7
+        #   env: NUMPY_VERSION=1.8 SETUP_CMD='test'
+        # - python: 2.7
+        #   env: NUMPY_VERSION=1.7 SETUP_CMD='test'
         - python: 2.7
           env: NUMPY_VERSION=1.6 SETUP_CMD='test'
 
@@ -75,11 +75,21 @@ before_install:
     # Use utf8 encoding. Should be default, but this is insurance against
     # future changes
     - export PYTHONIOENCODING=UTF8
-    - wget http://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh
-    - chmod +x miniconda.sh
-    - ./miniconda.sh -b
-    - export PATH=/home/travis/miniconda/bin:$PATH
-    - conda update --yes conda
+
+    # http://conda.pydata.org/docs/travis.html#the-travis-yml-file
+    - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+        wget https://repo.continuum.io/miniconda/Miniconda-latest-Linux-x86_64.sh -O miniconda.sh;
+      else
+        wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+      fi
+
+    - bash miniconda.sh -b -p $HOME/miniconda
+    - export PATH="$HOME/miniconda/bin:$PATH"
+    - hash -r
+    - conda config --set always_yes yes --set changeps1 no
+    - conda update -q conda
+    - conda info -a
+
 
 install:
 
